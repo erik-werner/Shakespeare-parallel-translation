@@ -59,8 +59,6 @@ def group_scenes_into_acts(data):
                 'scenes': []
             }
             acts.append(act)
-        print(heading.text, heading.tag)
-        print(act)
 
         act['scenes'].append(scene)
 
