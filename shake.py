@@ -30,6 +30,9 @@ def remove_tab_char(data):
 def replace_tab_tags(data):
     return data.replace('<tab>', '\t')
 
+def remove_page_breaks(data):
+    return re.sub(r'</poem>\n+<poem>', '\n ', data)
+
 def enclose_in_xml_tag(data, tag):
     return f'<{tag}>{data}</{tag}>'
 
@@ -45,20 +48,38 @@ def find_parts(data):
         scenes=scenes
         )
 
+def transform_scene(scene):
+    newlines = scene.text
+    heading = scene[0]
+
+    assert re.match(r'\n+', newlines), newlines
+    assert heading.tag in ('h1', 'h2'), heading
+
+    scene_text = ''.join(scene.itertext())
+    the_start = newlines + heading.text
+    assert scene_text.startswith(the_start), scene_text[0:100]
+    scene_text = scene_text[len(the_start):]
+
+    scene = re.match(r'\n+(.+?)\n\n(.+)', scene_text, flags=re.DOTALL)
+    scene = {
+        'heading': heading,
+        'location': scene.group(1),
+        'text': scene.group(2)
+        }
+
+    return scene
+
+def parse_scenes(data):
+    data['scenes'] = [transform_scene(s) for s in data['scenes']]
+    return data
+
+
 def split_acts(data):
     acts = []
+
     for scene in data['scenes']:
-        newlines = scene.text
-        heading = scene[0]
 
-        assert re.match(r'\n+', newlines), newlines
-        assert heading.tag in ('h1', 'h2'), heading
-
-        scene_text = ''.join(scene.itertext())
-        the_start = newlines + heading.text
-        assert scene_text.startswith(the_start), scene_text[0:100]
-        scene_text = scene_text[len(the_start):]
-
+        heading = scene['heading']
         if heading.tag == 'h1':
             act = {
                 'heading': heading.text,
@@ -66,10 +87,13 @@ def split_acts(data):
             }
             acts.append(act)
 
-        scene = {'heading': heading.text, 'text': scene_text}
+        scene['heading'] = heading.text
         act['scenes'].append(scene)
 
-    return acts
+    del data['scenes']
+    data['acts'] = acts
+    return data
+
 
 
 
@@ -77,9 +101,11 @@ def split_acts(data):
 filters = [
     remove_tab_char,
     replace_tab_tags,
+    remove_page_breaks,
     lambda d: enclose_in_xml_tag(d, 'book'),
     parse_xml,
     find_parts,
+    parse_scenes,
     split_acts,
 ]
 
