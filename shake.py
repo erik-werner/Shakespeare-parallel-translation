@@ -40,7 +40,7 @@ def parse_xml(data):
     tree = ElementTree.fromstring(data)
     return tree
 
-def find_parts(data):
+def find_intro_and_scenes(data):
     parts = list(data)
     intro, *scenes = parts
     return dict(
@@ -48,54 +48,53 @@ def find_parts(data):
         scenes=scenes
         )
 
-def transform_scene(scene):
-    newlines = scene.text
-    heading = scene[0]
-
-    assert re.match(r'\n+', newlines), newlines
-    assert heading.tag in ('h1', 'h2'), heading
-
-    scene_text = ''.join(scene.itertext())
-    the_start = newlines + heading.text
-    assert scene_text.startswith(the_start), scene_text[0:100]
-    scene_text = scene_text[len(the_start):]
-
-    scene = re.match(r'\n+(.+?)\n\n(.+)', scene_text, flags=re.DOTALL)
-    scene = {
-        'heading': heading,
-        'location': scene.group(1),
-        'text': scene.group(2)
-        }
-
-    return scene
-
-def parse_scenes(data):
-    data['scenes'] = [transform_scene(s) for s in data['scenes']]
-    return data
-
-
-def split_acts(data):
+def group_scenes_into_acts(data):
     acts = []
 
     for scene in data['scenes']:
-
-        heading = scene['heading']
+        heading = scene[0]
+        assert heading.tag in ('h1', 'h2'), heading
         if heading.tag == 'h1':
             act = {
-                'heading': heading.text,
                 'scenes': []
             }
             acts.append(act)
+        print(heading.text, heading.tag)
+        print(act)
 
-        scene['heading'] = heading.text
         act['scenes'].append(scene)
 
     del data['scenes']
     data['acts'] = acts
     return data
 
+def split_scene_into_heading_and_rest(scene):
+    newlines = scene.text
+    heading = scene[0]
 
+    assert heading.tag in ('h1', 'h2'), heading
+    assert re.match(r'\n+', newlines), newlines
 
+    scene_text = ElementTree.tostring(element=scene, encoding='unicode')
+
+    scene = re.match(r'\n+(.+?)\n\n(.+)', scene_text, flags=re.DOTALL)
+    scene = {
+        'heading': heading.text,
+        'text': scene_text
+        }
+
+    return scene
+
+def split_scenes_into_heading_and_rest(data):
+    data['acts'] = [
+        {
+            'scenes': [split_scene_into_heading_and_rest(s)
+            for s in act['scenes']]
+        }
+        for act in data['acts']
+        ]
+
+    return data
 
 
 filters = [
@@ -104,9 +103,9 @@ filters = [
     remove_page_breaks,
     lambda d: enclose_in_xml_tag(d, 'book'),
     parse_xml,
-    find_parts,
-    parse_scenes,
-    split_acts,
+    find_intro_and_scenes,
+    group_scenes_into_acts,
+    split_scenes_into_heading_and_rest,
 ]
 
 if __name__ == '__main__':
@@ -114,7 +113,7 @@ if __name__ == '__main__':
         data = f.read()
 
     result = apply_filters(filters, data)
-    print(result)
+    # print(result)
 
     # with open('out.json', 'w') as f:
     #     print(result, file=f)
