@@ -127,7 +127,8 @@ def split_scene(scene):
     scene_text = ElementTree.tostring(element=scene, encoding='unicode')
 
     m = re.match(
-        r'^<chapter.+?>\s*<h(1|2)>.+?</h(1|2)>\s+(?P<location>.+?)\n\n(?P<rest>.+)',
+        r'^<chapter.+?>\s*<h(1|2)>.+?</h(1|2)>\s+'
+        r'(?P<location>.+?)\n\n(?P<rest>.+)</chapter>',
         scene_text,
         flags=re.DOTALL
         )
