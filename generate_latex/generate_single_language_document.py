@@ -120,9 +120,10 @@ header = r'''
 book_sample = {
     'title': "Stormen",
     'intro':
-        {
-
-        },
+        [
+        "ALONZO, konung af Neapel.",
+        "SEBASTIAN, hans bror."
+        ],
     'acts':
         [
             {
@@ -133,7 +134,8 @@ book_sample = {
                     'title': "Scene I",
                     'lines':
                         [
-                        "Att vara eller icke vara"
+                        "Vill ägget lära hönan värpa?",
+                        "Den trösten smakar honom som kall soppa."
                         ]
                     }
                 ]
@@ -143,21 +145,44 @@ book_sample = {
 
 
 def generate_title(title):
-    return ''
-#     return '''
-#     \thispagestyle{empty} % no headers or footers
-# \HideHeaderLine
-# \vspace*{\stretch{2}}
-# \HRule
-# \begin{center}\Huge\itshape\bfseries {}\end{center}
-# \HRule
-#     '''
+    return r'''
+\thispagestyle{empty} %% no headers or footers
+\HideHeaderLine
+\vspace*{\stretch{2}}
+\HRule
+\begin{center}\Huge\itshape\bfseries {%s}\end{center}
+\HRule
+\pagestyle{fancy}
+\fancyhead{}
+\NewPage\pagenumbering{roman}
+''' % (title)
 
 def generate_intro(intro):
     return ''
 
+def generate_scene(scene):
+    result = r'''
+\Scene{%s}
+''' % (scene['title'])
+    for line in scene['lines']:
+        result += line
+        result += '\n\n'
+    return result
+
 def generate_act(act):
-    return act['title'] + '\n'
+    result = r'''
+    \Columns
+\pagestyle{fancy}
+\fancyhead{}
+\fancyhead[L]{\leftmark}
+\fancyhead[R]{\rightmark}
+
+\Act{%s}
+
+''' % (act['title'])
+    for scene in act['scenes']:
+        result += generate_scene(scene)
+    return result
 
 def generate_book(book):
     result = header
@@ -165,7 +190,7 @@ def generate_book(book):
     result += generate_intro(book['intro'])
     for act in book['acts']:
         result += generate_act(act)
-    result += '''\end{document}'''
+    result += r'''\end{document}'''
     return result
 
 
